@@ -4,6 +4,7 @@ import { defineConfig } from "sanity";
 import { structureTool } from "sanity/structure";
 import { schemaTypes } from "./schemas";
 import { structure } from "./structure";
+import { DeleteCategoryAction } from "./actions/DeleteCategoryAction";
 
 type StudioConfigOptions = {
   dataset: string;
@@ -29,15 +30,26 @@ function buildStudioConfig({
       ...(isDevelopment ? [visionTool()] : []),
     ],
     document: {
-      actions: (previousActions, context) =>
-        singletonSchemaTypes.includes(
-          context.schemaType as (typeof singletonSchemaTypes)[number]
-        )
-          ? previousActions.filter(
-              (action) =>
-                action.action !== "duplicate" && action.action !== "delete"
-            )
-          : previousActions,
+      actions: (previousActions, context) => {
+        if (
+          singletonSchemaTypes.includes(
+            context.schemaType as (typeof singletonSchemaTypes)[number]
+          )
+        ) {
+          return previousActions.filter(
+            (action) =>
+              action.action !== "duplicate" && action.action !== "delete"
+          );
+        }
+
+        if (context.schemaType === "category") {
+          return previousActions.map((action) =>
+            action.action === "delete" ? DeleteCategoryAction : action
+          );
+        }
+
+        return previousActions;
+      },
     },
     schema: {
       types: schemaTypes,
