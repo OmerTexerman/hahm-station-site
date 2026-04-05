@@ -281,12 +281,12 @@ body {
 }
 
 .scene-spotlight[data-spotlight-ready="true"] .scene-spotlight__shadow {
-  animation: spotlightShadowOff 1.9s steps(1, end) both;
+  animation: spotlightShadowOff 1.9s linear both;
 }
 
 .scene-spotlight[data-spotlight-ready="true"] .scene-spotlight__cutout,
 .scene-spotlight[data-spotlight-ready="true"] .scene-spotlight__circle {
-  animation: spotlightOn 1.9s steps(1, end) both;
+  animation: spotlightOn 1.9s linear both;
 }
 
 .scene-spotlight[data-spotlight-mode="settled"] .scene-spotlight__shadow {
@@ -374,16 +374,16 @@ body {
 
 @keyframes spotlightOn {
   0%,
-  26% {
+  12% {
     opacity: 0;
   }
-  30% {
+  16% {
     opacity: 1;
   }
-  32% {
+  18% {
     opacity: 0;
   }
-  36%,
+  22%,
   100% {
     opacity: 1;
   }
@@ -391,16 +391,16 @@ body {
 
 @keyframes spotlightShadowOff {
   0%,
-  26% {
+  12% {
     opacity: 1;
   }
-  30% {
+  16% {
     opacity: 0;
   }
-  32% {
+  18% {
     opacity: 1;
   }
-  36%,
+  22%,
   100% {
     opacity: 0;
   }

@@ -87,6 +87,17 @@ export const siteSettings = defineType({
       initialValue: DEFAULT_SITE_SETTINGS.siteDescription,
     }),
     defineField({
+      name: "favicon",
+      title: "Favicon",
+      type: "image",
+      group: "brand",
+      description:
+        "Optional. Upload a square PNG or SVG to replace the browser tab icon.",
+      options: {
+        hotspot: false,
+      },
+    }),
+    defineField({
       name: "notFoundTitle",
       title: "404 Title",
       type: "string",

@@ -368,7 +368,7 @@ export default function SceneSpotlight({
       return;
     }
 
-    if (storedSpotlightState) {
+    if (storedSpotlightState && skipIntro) {
       hasRevealedRef.current = true;
       latestMeasurementRef.current = JSON.stringify({
         left: storedSpotlightState.left,

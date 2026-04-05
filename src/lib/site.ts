@@ -41,6 +41,7 @@ export interface CategoryContentSource {
 export interface SiteSettings {
   siteTitle: string;
   siteDescription: string;
+  faviconUrl: string | null;
   homeHeaderTop: string;
   homeHeaderBottom: string;
   homeSceneTitle: string;
@@ -63,6 +64,7 @@ export interface SiteSettings {
 export interface SiteSettingsSource {
   siteTitle?: string | null;
   siteDescription?: string | null;
+  faviconUrl?: string | null;
   homeHeaderTop?: string | null;
   homeHeaderBottom?: string | null;
   homeSceneTitle?: string | null;
@@ -161,6 +163,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteTitle: "HAHM Station",
   siteDescription:
     "A quiet listening room for music reviews, literature notes, original releases, and life updates.",
+  faviconUrl: null,
   homeHeaderTop: "HAHM",
   homeHeaderBottom: "STATION",
   homeSceneTitle: "HAHM Station",
@@ -321,6 +324,7 @@ export function resolveSiteSettings(
     siteTitle: source?.siteTitle?.trim() || DEFAULT_SITE_SETTINGS.siteTitle,
     siteDescription:
       source?.siteDescription?.trim() || DEFAULT_SITE_SETTINGS.siteDescription,
+    faviconUrl: readOptionalText(source?.faviconUrl),
     homeHeaderTop:
       source?.homeHeaderTop?.trim() || DEFAULT_SITE_SETTINGS.homeHeaderTop,
     homeHeaderBottom:

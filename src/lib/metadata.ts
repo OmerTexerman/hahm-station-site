@@ -30,6 +30,7 @@ function buildCanonicalUrl(path?: string) {
 function composeMetadata({
   siteTitle,
   siteDescription,
+  faviconUrl,
   title,
   description = siteDescription,
   path,
@@ -39,6 +40,7 @@ function composeMetadata({
 }: {
   siteTitle: string;
   siteDescription: string;
+  faviconUrl?: string | null;
   title?: string;
   description?: string;
   path?: string;
@@ -67,6 +69,12 @@ function composeMetadata({
       title: resolvedTitle,
       description,
     },
+    icons: faviconUrl
+      ? {
+          icon: [{ url: faviconUrl }],
+          shortcut: [faviconUrl],
+        }
+      : undefined,
     robots: noIndex ? { index: false, follow: false } : undefined,
   };
 }
@@ -91,6 +99,7 @@ export async function buildMetadata({
   return composeMetadata({
     siteTitle: siteSettings.siteTitle,
     siteDescription: siteSettings.siteDescription,
+    faviconUrl: siteSettings.faviconUrl,
     title,
     description,
     path,
@@ -126,6 +135,7 @@ export async function buildPostMetadata(
     return composeMetadata({
       siteTitle: siteSettings.siteTitle,
       siteDescription: siteSettings.siteDescription,
+      faviconUrl: siteSettings.faviconUrl,
       title: section.title,
       description: section.description,
       path: `/${categorySlug}/${slug}`,
@@ -136,6 +146,7 @@ export async function buildPostMetadata(
   return composeMetadata({
     siteTitle: siteSettings.siteTitle,
     siteDescription: siteSettings.siteDescription,
+    faviconUrl: siteSettings.faviconUrl,
     title: post.title,
     description: post.excerpt ?? section.postFallbackExcerpt,
     path: `/${categorySlug}/${slug}`,

@@ -126,6 +126,7 @@ export interface CategoryDocument {
 export interface SiteSettingsDocument {
   siteTitle?: string | null;
   siteDescription?: string | null;
+  faviconUrl?: string | null;
   notFoundTitle?: string | null;
   notFoundDescription?: string | null;
   notFoundLinkLabel?: string | null;

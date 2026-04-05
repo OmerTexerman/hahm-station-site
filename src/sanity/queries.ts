@@ -59,6 +59,7 @@ const siteSettingsQuery = `
   *[_type == "siteSettings"][0] {
     siteTitle,
     siteDescription,
+    "faviconUrl": favicon.asset->url,
     notFoundTitle,
     notFoundDescription,
     notFoundLinkLabel,
