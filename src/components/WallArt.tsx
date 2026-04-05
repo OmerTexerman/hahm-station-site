@@ -46,6 +46,7 @@ const TOP_Z = 10;
 let demotePrevious: (() => void) | null = null;
 
 const MOBILE_BREAKPOINT_PX = 768;
+const WALL_EDGE_PADDING_PX = 28;
 const PIECE_GUTTER_PX = 20;
 const MAX_PIECES_DESKTOP = 12;
 const MAX_PIECES_MOBILE = 6;
@@ -131,46 +132,15 @@ function toPercent(px: number, total: number) {
   return total <= 0 ? 0 : (px / total) * 100;
 }
 
-function getBlockerRects(container: HTMLElement) {
-  const containerRect = container.getBoundingClientRect();
+function getWallAxisBounds(containerSize: number, pieceSize: number) {
+  const maxOffset = Math.max(0, containerSize - pieceSize);
+  const min = Math.min(WALL_EDGE_PADDING_PX, maxOffset / 2);
+  const max = Math.max(min, maxOffset - WALL_EDGE_PADDING_PX);
 
-  const blockers = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-wall-art-blocker='true']")
-  )
-    .map((element) => element.getBoundingClientRect())
-    .filter((rect) => rect.width > 0 && rect.height > 0)
-    .filter(
-      (rect) =>
-        rect.right > containerRect.left &&
-        rect.left < containerRect.right &&
-        rect.bottom > containerRect.top &&
-        rect.top < containerRect.bottom
-    )
-    .map((rect) => ({
-      minX: rect.left - containerRect.left - BLOCKER_GUTTER_PX,
-      maxX: rect.right - containerRect.left + BLOCKER_GUTTER_PX,
-      minY: rect.top - containerRect.top - BLOCKER_GUTTER_PX,
-      maxY: rect.bottom - containerRect.top + BLOCKER_GUTTER_PX,
-    }));
-
-  if (blockers.length === 0) {
-    return [];
-  }
-
-  const union = blockers.reduce<BlockerRect>(
-    (acc, rect) => ({
-      minX: Math.min(acc.minX, rect.minX),
-      maxX: Math.max(acc.maxX, rect.maxX),
-      minY: Math.min(acc.minY, rect.minY),
-      maxY: Math.max(acc.maxY, rect.maxY),
-    }),
-    blockers[0]
-  );
-
-  return [union];
+  return { min, max };
 }
 
-function getIndividualBlockerRects(container: HTMLElement): BlockerRect[] {
+function getBlockerRects(container: HTMLElement): BlockerRect[] {
   const containerRect = container.getBoundingClientRect();
 
   return Array.from(
@@ -193,6 +163,15 @@ function getIndividualBlockerRects(container: HTMLElement): BlockerRect[] {
     }));
 }
 
+function expandBlockerRects(blockers: BlockerRect[], amount: number) {
+  return blockers.map((blocker) => ({
+    minX: blocker.minX - amount,
+    maxX: blocker.maxX + amount,
+    minY: blocker.minY - amount,
+    maxY: blocker.maxY + amount,
+  }));
+}
+
 type PiecePlacement = {
   xPercent: number;
   yPercent: number;
@@ -202,6 +181,10 @@ type PiecePlacement = {
 
 function rectsOverlap(a: BlockerRect, b: BlockerRect) {
   return a.maxX > b.minX && a.minX < b.maxX && a.maxY > b.minY && a.minY < b.maxY;
+}
+
+function rangesOverlap(minA: number, maxA: number, minB: number, maxB: number) {
+  return maxA > minB && minA < maxB;
 }
 
 function computePieceLayout({
@@ -221,8 +204,6 @@ function computePieceLayout({
 }): PiecePlacement[] {
   const placements: PiecePlacement[] = [];
   const placedRects: BlockerRect[] = [];
-  // Enough padding for pushpin/washi attachments above the piece
-  const edgePadding = 28;
 
   // Divide container into a grid for even spatial distribution
   const cols = Math.max(3, Math.floor(containerWidth / 250));
@@ -246,8 +227,13 @@ function computePieceLayout({
 
   for (let i = 0; i < maxCount; i++) {
     const { w, h } = pieceSizes[i % pieceSizes.length];
+    const xBounds = getWallAxisBounds(containerWidth, w);
+    const yBounds = getWallAxisBounds(containerHeight, h);
 
-    if (w + edgePadding * 2 > containerWidth || h + edgePadding * 2 > containerHeight) {
+    if (
+      w + WALL_EDGE_PADDING_PX * 2 > containerWidth ||
+      h + WALL_EDGE_PADDING_PX * 2 > containerHeight
+    ) {
       placements.push(null);
       continue;
     }
@@ -265,13 +251,13 @@ function computePieceLayout({
         const localSeed = seed + i * 1000 + c * 100 + attempt * 7;
         const xPx = clamp(
           cellLeft + seededRandom(localSeed) * (cellW - w),
-          edgePadding,
-          containerWidth - w - edgePadding
+          xBounds.min,
+          xBounds.max
         );
         const yPx = clamp(
           cellTop + seededRandom(localSeed + 3) * (cellH - h),
-          edgePadding,
-          containerHeight - h - edgePadding
+          yBounds.min,
+          yBounds.max
         );
 
         const candidateRect: BlockerRect = {
@@ -331,11 +317,11 @@ function projectOutsideBlockers(
   pieceHeight: number,
   blockers: BlockerRect[]
 ) {
-  const maxX = Math.max(0, containerWidth - pieceWidth);
-  const maxY = Math.max(0, containerHeight - pieceHeight);
+  const xBounds = getWallAxisBounds(containerWidth, pieceWidth);
+  const yBounds = getWallAxisBounds(containerHeight, pieceHeight);
   let projected = {
-    xPx: clamp(position.xPx, 0, maxX),
-    yPx: clamp(position.yPx, 0, maxY),
+    xPx: clamp(position.xPx, xBounds.min, xBounds.max),
+    yPx: clamp(position.yPx, yBounds.min, yBounds.max),
   };
 
   for (let i = 0; i < blockers.length * 2; i += 1) {
@@ -349,28 +335,20 @@ function projectOutsideBlockers(
 
     const candidates = [
       {
-        xPx: clamp(
-          overlappingBlocker.minX - pieceWidth - BLOCKER_GUTTER_PX,
-          0,
-          maxX
-        ),
+        xPx: clamp(overlappingBlocker.minX - pieceWidth, xBounds.min, xBounds.max),
         yPx: projected.yPx,
       },
       {
-        xPx: clamp(overlappingBlocker.maxX + BLOCKER_GUTTER_PX, 0, maxX),
+        xPx: clamp(overlappingBlocker.maxX, xBounds.min, xBounds.max),
         yPx: projected.yPx,
       },
       {
         xPx: projected.xPx,
-        yPx: clamp(
-          overlappingBlocker.minY - pieceHeight - BLOCKER_GUTTER_PX,
-          0,
-          maxY
-        ),
+        yPx: clamp(overlappingBlocker.minY - pieceHeight, yBounds.min, yBounds.max),
       },
       {
         xPx: projected.xPx,
-        yPx: clamp(overlappingBlocker.maxY + BLOCKER_GUTTER_PX, 0, maxY),
+        yPx: clamp(overlappingBlocker.maxY, yBounds.min, yBounds.max),
       },
     ];
 
@@ -389,22 +367,226 @@ function projectOutsideBlockers(
   return projected;
 }
 
+function resolveHorizontalDrag(
+  position: LoosePosition,
+  targetX: number,
+  minX: number,
+  maxX: number,
+  pieceWidth: number,
+  pieceHeight: number,
+  blockers: BlockerRect[]
+) {
+  let resolvedX = clamp(targetX, minX, maxX);
+
+  if (resolvedX === position.xPx) {
+    return resolvedX;
+  }
+
+  const movingRight = resolvedX > position.xPx;
+
+  for (const blocker of blockers) {
+    if (
+      !rangesOverlap(
+        position.yPx,
+        position.yPx + pieceHeight,
+        blocker.minY,
+        blocker.maxY
+      )
+    ) {
+      continue;
+    }
+
+    if (movingRight) {
+      const stopX = blocker.minX - pieceWidth;
+      if (position.xPx <= stopX && resolvedX > stopX) {
+        resolvedX = Math.min(resolvedX, stopX);
+      }
+      continue;
+    }
+
+    const stopX = blocker.maxX;
+    if (position.xPx >= stopX && resolvedX < stopX) {
+      resolvedX = Math.max(resolvedX, stopX);
+    }
+  }
+
+  return clamp(resolvedX, minX, maxX);
+}
+
+function resolveVerticalDrag(
+  position: LoosePosition,
+  targetY: number,
+  minY: number,
+  maxY: number,
+  pieceWidth: number,
+  pieceHeight: number,
+  blockers: BlockerRect[]
+) {
+  let resolvedY = clamp(targetY, minY, maxY);
+
+  if (resolvedY === position.yPx) {
+    return resolvedY;
+  }
+
+  const movingDown = resolvedY > position.yPx;
+
+  for (const blocker of blockers) {
+    if (
+      !rangesOverlap(
+        position.xPx,
+        position.xPx + pieceWidth,
+        blocker.minX,
+        blocker.maxX
+      )
+    ) {
+      continue;
+    }
+
+    if (movingDown) {
+      const stopY = blocker.minY - pieceHeight;
+      if (position.yPx <= stopY && resolvedY > stopY) {
+        resolvedY = Math.min(resolvedY, stopY);
+      }
+      continue;
+    }
+
+    const stopY = blocker.maxY;
+    if (position.yPx >= stopY && resolvedY < stopY) {
+      resolvedY = Math.max(resolvedY, stopY);
+    }
+  }
+
+  return clamp(resolvedY, minY, maxY);
+}
+
+function resolveDragPath(
+  currentPosition: LoosePosition,
+  targetPosition: LoosePosition,
+  containerWidth: number,
+  containerHeight: number,
+  pieceWidth: number,
+  pieceHeight: number,
+  blockers: BlockerRect[]
+) {
+  const xBounds = getWallAxisBounds(containerWidth, pieceWidth);
+  const yBounds = getWallAxisBounds(containerHeight, pieceHeight);
+  const clampedTarget = {
+    xPx: clamp(targetPosition.xPx, xBounds.min, xBounds.max),
+    yPx: clamp(targetPosition.yPx, yBounds.min, yBounds.max),
+  };
+  const startPosition = projectOutsideBlockers(
+    currentPosition,
+    containerWidth,
+    containerHeight,
+    pieceWidth,
+    pieceHeight,
+    blockers
+  );
+
+  const horizontalFirst = () => {
+    const afterX = {
+      xPx: resolveHorizontalDrag(
+        startPosition,
+        clampedTarget.xPx,
+        xBounds.min,
+        xBounds.max,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      ),
+      yPx: startPosition.yPx,
+    };
+
+    return {
+      xPx: afterX.xPx,
+      yPx: resolveVerticalDrag(
+        afterX,
+        clampedTarget.yPx,
+        yBounds.min,
+        yBounds.max,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      ),
+    };
+  };
+
+  const verticalFirst = () => {
+    const afterY = {
+      xPx: startPosition.xPx,
+      yPx: resolveVerticalDrag(
+        startPosition,
+        clampedTarget.yPx,
+        yBounds.min,
+        yBounds.max,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      ),
+    };
+
+    return {
+      xPx: resolveHorizontalDrag(
+        afterY,
+        clampedTarget.xPx,
+        xBounds.min,
+        xBounds.max,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      ),
+      yPx: afterY.yPx,
+    };
+  };
+
+  const xThenY = horizontalFirst();
+  const yThenX = verticalFirst();
+  const xThenYDistance =
+    (xThenY.xPx - clampedTarget.xPx) ** 2 +
+    (xThenY.yPx - clampedTarget.yPx) ** 2;
+  const yThenXDistance =
+    (yThenX.xPx - clampedTarget.xPx) ** 2 +
+    (yThenX.yPx - clampedTarget.yPx) ** 2;
+
+  return projectOutsideBlockers(
+    yThenXDistance < xThenYDistance ? yThenX : xThenY,
+    containerWidth,
+    containerHeight,
+    pieceWidth,
+    pieceHeight,
+    blockers
+  );
+}
+
 function projectToWall(
   position: LoosePosition,
+  currentPosition: LoosePosition | null,
   container: HTMLElement,
   containerWidth: number,
   containerHeight: number,
   pieceWidth: number,
   pieceHeight: number
 ) {
-  return projectOutsideBlockers(
-    position,
-    containerWidth,
-    containerHeight,
-    pieceWidth,
-    pieceHeight,
-    getBlockerRects(container)
-  );
+  const blockers = expandBlockerRects(getBlockerRects(container), PIECE_GUTTER_PX);
+
+  return currentPosition
+    ? resolveDragPath(
+        currentPosition,
+        position,
+        containerWidth,
+        containerHeight,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      )
+    : projectOutsideBlockers(
+        position,
+        containerWidth,
+        containerHeight,
+        pieceWidth,
+        pieceHeight,
+        blockers
+      );
 }
 
 function Pushpin({ color }: { color: string }) {
@@ -868,11 +1050,15 @@ function WallPiece({
       return null;
     }
 
+    const currentPosition =
+      loosePosition ?? getRelativePosition(metrics.element, metrics.container);
+
     return projectToWall(
       {
         xPx: clientX - metrics.containerRect.left - offsetX,
         yPx: clientY - metrics.containerRect.top - offsetY,
       },
+      currentPosition,
       metrics.container,
       metrics.containerRect.width,
       metrics.containerRect.height,
@@ -888,8 +1074,11 @@ function WallPiece({
       return;
     }
 
+    const currentPosition =
+      loosePosition ?? getRelativePosition(metrics.element, metrics.container);
     const clampedPosition = projectToWall(
       position,
+      currentPosition,
       metrics.container,
       metrics.containerRect.width,
       metrics.containerRect.height,
@@ -1269,7 +1458,7 @@ function usePieceLayout(
       const fallbackSizes = isMobile
         ? FALLBACK_ART_SIZES_MOBILE
         : FALLBACK_ART_SIZES_DESKTOP;
-      const blockerRects = getIndividualBlockerRects(container);
+      const blockerRects = getBlockerRects(container);
 
       const pieceSizes: Array<{ w: number; h: number }> = [];
       for (let i = 0; i < maxCount; i++) {
