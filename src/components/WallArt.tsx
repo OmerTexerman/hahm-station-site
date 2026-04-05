@@ -45,13 +45,27 @@ const BLOCKER_GUTTER_PX = 10;
 const TOP_Z = 10;
 let demotePrevious: (() => void) | null = null;
 
-const ART_SIZES = {
+const MOBILE_BREAKPOINT_PX = 768;
+const PIECE_GUTTER_PX = 20;
+const MAX_PIECES_DESKTOP = 12;
+const MAX_PIECES_MOBILE = 6;
+const MAX_PLACEMENT_ATTEMPTS = 80;
+const RESIZE_BUCKET_PX = 200;
+const RESIZE_DEBOUNCE_MS = 200;
+
+const ART_SIZES_DESKTOP = {
   small: { w: 90, h: 110 },
   medium: { w: 120, h: 150 },
   large: { w: 150, h: 190 },
 } as const;
 
-const FALLBACK_ART_SIZES = [
+const ART_SIZES_MOBILE = {
+  small: { w: 60, h: 74 },
+  medium: { w: 80, h: 100 },
+  large: { w: 100, h: 127 },
+} as const;
+
+const FALLBACK_ART_SIZES_DESKTOP = [
   { w: 112, h: 144 },
   { w: 128, h: 128 },
   { w: 96, h: 96 },
@@ -64,26 +78,24 @@ const FALLBACK_ART_SIZES = [
   { w: 110, h: 140 },
 ];
 
+const FALLBACK_ART_SIZES_MOBILE = [
+  { w: 75, h: 96 },
+  { w: 85, h: 85 },
+  { w: 64, h: 64 },
+  { w: 80, h: 107 },
+  { w: 64, h: 85 },
+  { w: 53, h: 75 },
+  { w: 85, h: 53 },
+  { w: 67, h: 67 },
+  { w: 60, h: 80 },
+  { w: 73, h: 93 },
+];
+
 const PUSH_PIN_COLORS = [
   "var(--theme-wall-art-pin-red)",
   "var(--theme-wall-art-pin-yellow)",
   "var(--theme-wall-art-pin-green)",
   "var(--theme-wall-art-pin-blue)",
-];
-
-const WALL_ZONES = [
-  { minX: 2, maxX: 15, minY: 5, maxY: 22 },
-  { minX: 1, maxX: 14, minY: 28, maxY: 48 },
-  { minX: 3, maxX: 16, minY: 55, maxY: 72 },
-  { minX: 1, maxX: 12, minY: 78, maxY: 92 },
-  { minX: 85, maxX: 96, minY: 5, maxY: 22 },
-  { minX: 84, maxX: 97, minY: 28, maxY: 48 },
-  { minX: 86, maxX: 96, minY: 55, maxY: 72 },
-  { minX: 85, maxX: 96, minY: 78, maxY: 92 },
-  { minX: 22, maxX: 38, minY: 2, maxY: 14 },
-  { minX: 62, maxX: 78, minY: 2, maxY: 14 },
-  { minX: 25, maxX: 42, minY: 78, maxY: 92 },
-  { minX: 58, maxX: 75, minY: 80, maxY: 94 },
 ];
 
 function hashString(value: string) {
@@ -156,6 +168,145 @@ function getBlockerRects(container: HTMLElement) {
   );
 
   return [union];
+}
+
+function getIndividualBlockerRects(container: HTMLElement): BlockerRect[] {
+  const containerRect = container.getBoundingClientRect();
+
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("[data-wall-art-blocker='true']")
+  )
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .filter(
+      (rect) =>
+        rect.right > containerRect.left &&
+        rect.left < containerRect.right &&
+        rect.bottom > containerRect.top &&
+        rect.top < containerRect.bottom
+    )
+    .map((rect) => ({
+      minX: rect.left - containerRect.left - BLOCKER_GUTTER_PX,
+      maxX: rect.right - containerRect.left + BLOCKER_GUTTER_PX,
+      minY: rect.top - containerRect.top - BLOCKER_GUTTER_PX,
+      maxY: rect.bottom - containerRect.top + BLOCKER_GUTTER_PX,
+    }));
+}
+
+type PiecePlacement = {
+  xPercent: number;
+  yPercent: number;
+  width: number;
+  height: number;
+} | null;
+
+function rectsOverlap(a: BlockerRect, b: BlockerRect) {
+  return a.maxX > b.minX && a.minX < b.maxX && a.maxY > b.minY && a.minY < b.maxY;
+}
+
+function computePieceLayout({
+  containerWidth,
+  containerHeight,
+  blockerRects,
+  pieceSizes,
+  maxCount,
+  seed,
+}: {
+  containerWidth: number;
+  containerHeight: number;
+  blockerRects: BlockerRect[];
+  pieceSizes: Array<{ w: number; h: number }>;
+  maxCount: number;
+  seed: number;
+}): PiecePlacement[] {
+  const placements: PiecePlacement[] = [];
+  const placedRects: BlockerRect[] = [];
+  // Enough padding for pushpin/washi attachments above the piece
+  const edgePadding = 28;
+
+  // Divide container into a grid for even spatial distribution
+  const cols = Math.max(3, Math.floor(containerWidth / 250));
+  const rows = Math.max(2, Math.floor(containerHeight / 250));
+  const cellW = containerWidth / cols;
+  const cellH = containerHeight / rows;
+
+  // Build cell list and shuffle with seeded random
+  const cells: Array<{ col: number; row: number }> = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      cells.push({ col: c, row: r });
+    }
+  }
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(seededRandom(seed + i * 31) * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+
+  let cellCursor = 0;
+
+  for (let i = 0; i < maxCount; i++) {
+    const { w, h } = pieceSizes[i % pieceSizes.length];
+
+    if (w + edgePadding * 2 > containerWidth || h + edgePadding * 2 > containerHeight) {
+      placements.push(null);
+      continue;
+    }
+
+    let placed = false;
+
+    // Try each cell starting from cursor, wrapping around
+    for (let c = 0; c < cells.length && !placed; c++) {
+      const cell = cells[(cellCursor + c) % cells.length];
+      const cellLeft = cell.col * cellW;
+      const cellTop = cell.row * cellH;
+
+      // Try random positions within this cell
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const localSeed = seed + i * 1000 + c * 100 + attempt * 7;
+        const xPx = clamp(
+          cellLeft + seededRandom(localSeed) * (cellW - w),
+          edgePadding,
+          containerWidth - w - edgePadding
+        );
+        const yPx = clamp(
+          cellTop + seededRandom(localSeed + 3) * (cellH - h),
+          edgePadding,
+          containerHeight - h - edgePadding
+        );
+
+        const candidateRect: BlockerRect = {
+          minX: xPx - PIECE_GUTTER_PX,
+          maxX: xPx + w + PIECE_GUTTER_PX,
+          minY: yPx - PIECE_GUTTER_PX,
+          maxY: yPx + h + PIECE_GUTTER_PX,
+        };
+
+        if (
+          blockerRects.some((b) => rectsOverlap(candidateRect, b)) ||
+          placedRects.some((p) => rectsOverlap(candidateRect, p))
+        ) {
+          continue;
+        }
+
+        placedRects.push(candidateRect);
+        placements.push({
+          xPercent: roundTo(toPercent(xPx, containerWidth), 4),
+          yPercent: roundTo(toPercent(yPx, containerHeight), 4),
+          width: w,
+          height: h,
+        });
+        placed = true;
+        cellCursor = (cellCursor + c + 1) % cells.length;
+        break;
+      }
+    }
+
+    if (!placed) {
+      placements.push(null);
+    }
+  }
+
+  return placements;
 }
 
 function overlapsBlocker(
@@ -1089,6 +1240,95 @@ function WallPiece({
   );
 }
 
+type LayoutState = {
+  placements: PiecePlacement[];
+  containerWidth: number;
+};
+
+function usePieceLayout(
+  containerRef: RefObject<HTMLDivElement | null>,
+  pieces: WallArtPiece[] | undefined,
+  layoutSeed: number
+): LayoutState | null {
+  const [layout, setLayout] = useState<LayoutState | null>(null);
+  const lastBucketRef = useRef("");
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let debounceTimer: number | null = null;
+
+    const compute = () => {
+      const { width, height } = container.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
+
+      const isMobile = width < MOBILE_BREAKPOINT_PX;
+      const maxCount = isMobile ? MAX_PIECES_MOBILE : MAX_PIECES_DESKTOP;
+      const artSizes = isMobile ? ART_SIZES_MOBILE : ART_SIZES_DESKTOP;
+      const fallbackSizes = isMobile
+        ? FALLBACK_ART_SIZES_MOBILE
+        : FALLBACK_ART_SIZES_DESKTOP;
+      const blockerRects = getIndividualBlockerRects(container);
+
+      const pieceSizes: Array<{ w: number; h: number }> = [];
+      for (let i = 0; i < maxCount; i++) {
+        const piece = pieces?.length ? pieces[i % pieces.length] : undefined;
+        if (piece) {
+          pieceSizes.push(artSizes[piece.size || "medium"]);
+        } else {
+          const pieceSeed =
+            hashString(`fallback:${i}`) + layoutSeed;
+          pieceSizes.push(
+            fallbackSizes[
+              Math.floor(seededRandom(pieceSeed + 157) * fallbackSizes.length)
+            ]
+          );
+        }
+      }
+
+      setLayout({
+        placements: computePieceLayout({
+          containerWidth: width,
+          containerHeight: height,
+          blockerRects,
+          pieceSizes,
+          maxCount,
+          seed: layoutSeed,
+        }),
+        containerWidth: width,
+      });
+    };
+
+    const onResize = () => {
+      const { width, height } = container.getBoundingClientRect();
+      const bucketKey = `${Math.floor(width / RESIZE_BUCKET_PX)}:${Math.floor(height / RESIZE_BUCKET_PX)}`;
+      if (bucketKey === lastBucketRef.current) return;
+      lastBucketRef.current = bucketKey;
+
+      if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(compute, RESIZE_DEBOUNCE_MS);
+    };
+
+    const initialTimer = window.setTimeout(() => {
+      compute();
+      const { width, height } = container.getBoundingClientRect();
+      lastBucketRef.current = `${Math.floor(width / RESIZE_BUCKET_PX)}:${Math.floor(height / RESIZE_BUCKET_PX)}`;
+    }, 50);
+
+    const observer = new ResizeObserver(onResize);
+    observer.observe(container);
+
+    return () => {
+      window.clearTimeout(initialTimer);
+      if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+      observer.disconnect();
+    };
+  }, [containerRef, pieces, layoutSeed]);
+
+  return layout;
+}
+
 export default function WallArt({
   pieces,
   playIntro = true,
@@ -1101,32 +1341,34 @@ export default function WallArt({
   quote: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sessionSeedRef = useRef(Math.floor(Math.random() * 100000));
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const layoutSeed = hashString(
-    pieces?.map((piece) => piece._id).join("|") || "fallback-wall-art"
-  );
+  const layoutSeed =
+    hashString(
+      pieces?.map((piece) => piece._id).join("|") || "fallback-wall-art"
+    ) + sessionSeedRef.current;
   const hasInteractivePieces = (pieces ?? []).some((piece) =>
     Boolean(getSafeWallArtHref(piece.link))
   );
+  const layout = usePieceLayout(containerRef, pieces, layoutSeed);
+  const widthBucket = layout
+    ? Math.floor(layout.containerWidth / RESIZE_BUCKET_PX)
+    : 0;
 
   return (
     <div
       ref={containerRef}
       aria-hidden={hasInteractivePieces ? undefined : "true"}
-      className="absolute inset-0 hidden overflow-hidden pointer-events-none lg:block"
+      className="absolute inset-0 overflow-hidden pointer-events-none"
     >
-      {WALL_ZONES.map((zone, index) => {
+      {layout?.placements.map((placement, index) => {
+        if (!placement) return null;
+
         const piece = pieces?.length ? pieces[index % pieces.length] : undefined;
         const safeHref = piece ? getSafeWallArtHref(piece.link) : null;
         const seed =
           hashString(piece ? `${piece._id}:${index}` : `fallback:${index}`) +
           layoutSeed;
-        const xPercent = roundTo(
-          zone.minX + seededRandom(seed + 13) * (zone.maxX - zone.minX), 4
-        );
-        const yPercent = roundTo(
-          zone.minY + seededRandom(seed + 29) * (zone.maxY - zone.minY), 4
-        );
         const rotation = roundTo((seededRandom(seed + 47) - 0.5) * 24, 4);
         const zIndex = 1 + Math.floor(seededRandom(seed + 71) * 6);
         const attachmentRoll = seededRandom(seed + 107);
@@ -1137,17 +1379,9 @@ export default function WallArt({
             Math.floor(seededRandom(seed + 131) * PUSH_PIN_COLORS.length)
           ];
 
-        const sizePreset = piece
-          ? ART_SIZES[piece.size || "medium"]
-          : FALLBACK_ART_SIZES[
-              Math.floor(
-                seededRandom(seed + 157) * FALLBACK_ART_SIZES.length
-              )
-            ];
-
         const content =
           piece && piece.imageUrl ? (
-            <CmsArtPiece piece={piece} width={sizePreset.w} href={safeHref} />
+            <CmsArtPiece piece={piece} width={placement.width} href={safeHref} />
           ) : (
             <div
               className="h-full w-full overflow-hidden rounded-sm border"
@@ -1167,16 +1401,19 @@ export default function WallArt({
 
         return (
           <WallPiece
-            key={piece ? `${piece._id}-${index}` : `fallback-${index}`}
+            key={`b${widthBucket}-${piece ? piece._id : "fb"}-${index}`}
             index={index}
-            width={sizePreset.w}
-            height={sizePreset.h}
+            width={placement.width}
+            height={placement.height}
             rotation={rotation}
             zIndex={zIndex}
             attachment={attachment}
             pinColor={pinColor}
             seed={seed}
-            initialMountedPosition={{ xPercent, yPercent }}
+            initialMountedPosition={{
+              xPercent: placement.xPercent,
+              yPercent: placement.yPercent,
+            }}
             playIntro={playIntro}
             reducedMotion={prefersReducedMotion}
             decorative={!safeHref}
