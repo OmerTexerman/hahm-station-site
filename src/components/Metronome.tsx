@@ -22,7 +22,7 @@ function MetronomeGraphic({
       ) : null}
       <svg
         viewBox="0 0 80 160"
-        className="block h-48 w-24 overflow-visible"
+        className="block h-auto w-20 shrink-0 overflow-visible lg:w-24"
       >
         <polygon
           points="40,8 12,144 68,144"

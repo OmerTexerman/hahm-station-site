@@ -37,6 +37,14 @@ type PressState = {
 const DRAG_THRESHOLD_PX = 8;
 const BLOCKER_GUTTER_PX = 10;
 
+/**
+ * Only the most-recently-dropped piece needs an elevated z-index.
+ * When a new piece is dropped, we demote the previous one back to baseline.
+ * Z-index stays bounded: pieces are either at their seed value (1–6) or at TOP_Z (10).
+ */
+const TOP_Z = 10;
+let demotePrevious: (() => void) | null = null;
+
 const ART_SIZES = {
   small: { w: 90, h: 110 },
   medium: { w: 120, h: 150 },
@@ -649,6 +657,7 @@ function WallPiece({
     useState<MountedPosition>(initialMountedPosition);
   const [loosePosition, setLoosePosition] = useState<LoosePosition | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [effectiveZIndex, setEffectiveZIndex] = useState(zIndex);
   const [hasEntered, setHasEntered] = useState(false);
   const shouldSkipIntro = reducedMotion || !playIntro;
 
@@ -750,6 +759,9 @@ function WallPiece({
       ),
     });
     setLoosePosition(null);
+    demotePrevious?.();
+    demotePrevious = () => setEffectiveZIndex(zIndex);
+    setEffectiveZIndex(TOP_Z);
     setMode("mounted");
   };
 
@@ -1012,7 +1024,7 @@ function WallPiece({
       : `${loosePosition?.yPx ?? 0}px`,
     width: `${width}px`,
     height: `${height}px`,
-    zIndex: isDragging ? 30 : zIndex,
+    zIndex: isDragging ? 30 : effectiveZIndex,
     transition: reducedMotion
       ? undefined
       : mode === "falling"

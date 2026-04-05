@@ -16,7 +16,7 @@ function ShelfDecorGraphic({
       ) : null}
       <svg
         viewBox="0 0 70 70"
-        className={`block h-24 w-24 overflow-visible ${
+        className={`block h-auto w-20 shrink-0 overflow-visible lg:w-24 ${
           interactive
             ? "motion-hover-tilt transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-[-5deg]"
             : ""

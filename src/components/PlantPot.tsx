@@ -22,7 +22,7 @@ function PlantPotGraphic({
       ) : null}
       <svg
         viewBox="0 0 80 107"
-        className="block h-[150px] w-28"
+        className="block h-auto w-24 shrink-0 lg:w-28"
       >
         <g
           className="plant-leaf"

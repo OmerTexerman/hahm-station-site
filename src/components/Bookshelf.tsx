@@ -16,13 +16,13 @@ type ShelfBook =
 
 function Shelf({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex justify-center">
-      <div
-        data-wall-art-blocker="true"
-        data-spotlight-target="true"
-        className="pointer-events-auto inline-flex flex-col items-stretch"
-      >
-        <div className="flex items-end gap-[2px] px-4 sm:gap-[3px] sm:px-6">
+    <div
+      data-wall-art-blocker="true"
+      data-spotlight-target="true"
+      className="pointer-events-auto overflow-x-auto scrollbar-hide snap-x snap-proximity xl:snap-none [overscroll-behavior-x:contain]"
+    >
+      <div className="inline-flex min-w-full flex-col items-stretch">
+        <div className="flex items-end gap-[2px] px-4 [justify-content:safe_center] sm:gap-[3px] sm:px-6">
           {children}
         </div>
         <div className="theme-shelf-board h-5" />
@@ -34,28 +34,18 @@ function Shelf({ children }: { children: React.ReactNode }) {
 
 function chunkSections(sections: SectionConfig[], size: number) {
   const chunks: SectionConfig[][] = [];
-
-  for (let index = 0; index < sections.length; index += size) {
-    chunks.push(sections.slice(index, index + size));
+  for (let i = 0; i < sections.length; i += size) {
+    chunks.push(sections.slice(i, i + size));
   }
-
   return chunks;
 }
 
-function withDecorativeBook(row: SectionConfig[], rowIndex: number): ShelfBook[] {
-  if (row.length === 0) {
-    return [];
-  }
-
-  const books = row.map((section) => ({
+function buildShelfBooks(sections: SectionConfig[]): ShelfBook[] {
+  const books: ShelfBook[] = sections.map((section) => ({
     kind: "section" as const,
     key: section.slug,
     section,
   }));
-
-  if (rowIndex !== 0) {
-    return books;
-  }
 
   const insertAt = Math.min(2, books.length);
 
@@ -66,13 +56,13 @@ function withDecorativeBook(row: SectionConfig[], rowIndex: number): ShelfBook[]
   ];
 }
 
-function renderShelfBook(book: ShelfBook, animationIndex: number) {
+function renderShelfBook(book: ShelfBook, index: number) {
   if (book.kind === "decorative") {
     return (
       <BookCover
         key={book.key}
         decorative
-        index={animationIndex}
+        index={index}
         color="var(--theme-decorative-primary)"
         accentColor="var(--theme-decorative-accent-soft)"
       />
@@ -87,7 +77,7 @@ function renderShelfBook(book: ShelfBook, animationIndex: number) {
       href={`/${book.section.slug}`}
       color={book.section.color}
       accentColor={book.section.accentColor}
-      index={animationIndex}
+      index={index}
     />
   );
 }
@@ -108,7 +98,7 @@ export default function Bookshelf({
   settings: SiteSettings;
 }) {
   const navItems = getNavItems(sections);
-  const desktopRows = chunkSections(sections, 4);
+  const allBooks = buildShelfBooks(sections);
   const mobileRows = chunkSections(sections, 2);
   const metronomeLink = resolveDecorHref(sections, settings.metronomeCategorySlug);
   const vinylLink = resolveDecorHref(sections, settings.vinylCategorySlug);
@@ -119,47 +109,49 @@ export default function Bookshelf({
 
   return (
     <div className="pointer-events-none mx-auto w-full animate-slide-up">
-      <div className="hidden md:block space-y-6">
-        {desktopRows.map((row, rowIndex) => {
-          const books = withDecorativeBook(row, rowIndex);
+      {/* Desktop: single shelf, all items inline */}
+      <div className="hidden xl:block">
+        <Shelf>
+          <Metronome href={metronomeLink?.href} label={metronomeLabel} />
+          {allBooks.map((book, index) => renderShelfBook(book, index))}
+          <ShelfDecor href={vinylLink?.href} label={vinylLabel} />
+          <PlantPot href={plantLink?.href} label={plantLabel} />
+        </Shelf>
+      </div>
+
+      {/* Mobile/tablet: multiple shelves, decorations integrated */}
+      <div className="space-y-6 xl:hidden">
+        {mobileRows.map((row, rowIndex) => {
+          const books = row.map((section) => ({
+            kind: "section" as const,
+            key: section.slug,
+            section,
+          }));
+          const isFirstRow = rowIndex === 0;
+          const isLastRow = rowIndex === mobileRows.length - 1;
+          const decorativeBook: ShelfBook = {
+            kind: "decorative" as const,
+            key: "decorative-home-book",
+          };
 
           return (
-            <Shelf key={`desktop-row-${rowIndex}`}>
-              {rowIndex === 0 ? (
+            <Shelf key={`mobile-row-${rowIndex}`}>
+              {isFirstRow && (
                 <Metronome href={metronomeLink?.href} label={metronomeLabel} />
-              ) : null}
-              {books.map((book, bookIndex) =>
-                renderShelfBook(book, rowIndex * 6 + bookIndex)
               )}
-              {rowIndex === 0 ? (
+              {books.map((book, bookIndex) =>
+                renderShelfBook(book, rowIndex * 3 + bookIndex)
+              )}
+              {isFirstRow && renderShelfBook(decorativeBook, books.length)}
+              {isLastRow && (
                 <>
                   <ShelfDecor href={vinylLink?.href} label={vinylLabel} />
                   <PlantPot href={plantLink?.href} label={plantLabel} />
                 </>
-              ) : null}
-            </Shelf>
-          );
-        })}
-      </div>
-
-      <div className="space-y-6 md:hidden">
-        {mobileRows.map((row, rowIndex) => {
-          const books = withDecorativeBook(row, rowIndex);
-
-          return (
-            <Shelf key={`mobile-row-${rowIndex}`}>
-              {books.map((book, bookIndex) =>
-                renderShelfBook(book, rowIndex * 4 + bookIndex)
               )}
             </Shelf>
           );
         })}
-
-        <Shelf>
-          <Metronome href={metronomeLink?.href} label={metronomeLabel} />
-          <ShelfDecor href={vinylLink?.href} label={vinylLabel} />
-          <PlantPot href={plantLink?.href} label={plantLabel} />
-        </Shelf>
       </div>
 
       <div
