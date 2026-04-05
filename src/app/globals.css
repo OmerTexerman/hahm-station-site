@@ -427,7 +427,8 @@ body {
   .motion-hover-lift:hover,
   .motion-hover-tilt:hover,
   .motion-hover-shift-left:hover,
-  .motion-hover-shift-right:hover {
+  .motion-hover-shift-right:hover,
+  .hover\:-translate-y-3:hover {
     transform: none !important;
   }
 

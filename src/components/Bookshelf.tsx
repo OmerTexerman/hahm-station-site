@@ -22,7 +22,7 @@ function Shelf({ children }: { children: React.ReactNode }) {
       className="pointer-events-auto overflow-x-auto scrollbar-hide snap-x snap-proximity xl:snap-none [overscroll-behavior-x:contain]"
     >
       <div className="inline-flex min-w-full flex-col items-stretch">
-        <div className="flex items-end gap-[2px] px-4 [justify-content:safe_center] sm:gap-[3px] sm:px-6">
+        <div className="flex items-end gap-[2px] px-4 pt-4 [justify-content:safe_center] sm:gap-[3px] sm:px-6">
           {children}
         </div>
         <div className="theme-shelf-board h-5" />

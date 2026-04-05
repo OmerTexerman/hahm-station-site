@@ -58,11 +58,11 @@ export default function BookCover(props: BookCoverProps) {
   return (
     <Link
       href={href}
-      className="theme-focus-ring relative group flex h-56 w-32 shrink-0 snap-start cursor-pointer animate-slide-up lg:h-72 lg:w-48"
+      className="theme-focus-ring relative group flex h-56 w-32 shrink-0 snap-start cursor-pointer animate-slide-up lg:h-72 lg:w-48 transition-transform duration-300 hover:-translate-y-3"
       style={{ animationDelay: `${0.5 + index * 0.08}s` }}
     >
       <div
-        className="book-cover-surface absolute inset-0 overflow-hidden rounded-[3px] shadow-lg transition-all duration-300 group-hover:-translate-y-3 group-hover:shadow-2xl"
+        className="book-cover-surface absolute inset-0 overflow-hidden rounded-[3px] shadow-lg transition-shadow duration-300 group-hover:shadow-2xl"
         style={{
           backgroundColor: color,
           boxShadow: "0 24px 48px color-mix(in srgb, var(--theme-background) 70%, black)",
