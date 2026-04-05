@@ -10,12 +10,14 @@ type StudioConfigOptions = {
   projectId: string;
 };
 
-export function createStudioConfig({
+const isDevelopment = process.env.NODE_ENV === "development";
+const singletonSchemaTypes = ["siteSettings", "homeScreenSettings"] as const;
+const studioConfigCache = new Map<string, ReturnType<typeof buildStudioConfig>>();
+
+function buildStudioConfig({
   dataset,
   projectId,
 }: StudioConfigOptions) {
-  const isDevelopment = process.env.NODE_ENV === "development";
-
   return defineConfig({
     name: "hahm-station",
     title: "HAHM Station",
@@ -28,7 +30,9 @@ export function createStudioConfig({
     ],
     document: {
       actions: (previousActions, context) =>
-        ["siteSettings", "homeScreenSettings"].includes(context.schemaType)
+        singletonSchemaTypes.includes(
+          context.schemaType as (typeof singletonSchemaTypes)[number]
+        )
           ? previousActions.filter(
               (action) =>
                 action.action !== "duplicate" && action.action !== "delete"
@@ -40,8 +44,23 @@ export function createStudioConfig({
       templates: (templates) =>
         templates.filter(
           (template) =>
-            !["siteSettings", "homeScreenSettings"].includes(template.schemaType)
+            !singletonSchemaTypes.includes(
+              template.schemaType as (typeof singletonSchemaTypes)[number]
+            )
         ),
     },
   });
+}
+
+export function createStudioConfig(options: StudioConfigOptions) {
+  const cacheKey = `${options.projectId}:${options.dataset}:${isDevelopment ? "dev" : "prod"}`;
+  const cachedConfig = studioConfigCache.get(cacheKey);
+
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  const config = buildStudioConfig(options);
+  studioConfigCache.set(cacheKey, config);
+  return config;
 }

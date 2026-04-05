@@ -6,7 +6,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -42,10 +41,9 @@ type SpotlightStyle = CSSProperties & {
   "--spotlight-offset-y"?: string;
 };
 
-let cachedStoredSpotlightRaw: string | null | undefined;
-let cachedStoredSpotlightState: StoredSpotlightState | null = null;
-
-function buildSpotlightStyle(state: Pick<StoredSpotlightState, "left" | "top" | "size">) {
+function buildSpotlightStyle(
+  state: Pick<StoredSpotlightState, "left" | "top" | "size">
+) {
   return {
     "--spotlight-left": state.left,
     "--spotlight-top": state.top,
@@ -53,50 +51,36 @@ function buildSpotlightStyle(state: Pick<StoredSpotlightState, "left" | "top" | 
   } satisfies SpotlightStyle;
 }
 
-function readStoredSpotlightState() {
-  const rawState = readSessionItem(HOME_SPOTLIGHT_STYLE_STORAGE_KEY);
-
-  if (rawState === cachedStoredSpotlightRaw) {
-    return cachedStoredSpotlightState;
-  }
-
-  cachedStoredSpotlightRaw = rawState;
-
-  if (!rawState) {
-    cachedStoredSpotlightState = null;
-    return null;
-  }
+function parseStoredSpotlightState(
+  raw: string | null
+): StoredSpotlightState | null {
+  if (!raw) return null;
 
   try {
-    const parsed = JSON.parse(rawState) as StoredSpotlightState;
+    const parsed = JSON.parse(raw) as StoredSpotlightState;
 
     if (
       typeof parsed?.left !== "string" ||
       typeof parsed?.top !== "string" ||
       typeof parsed?.size !== "string"
     ) {
-      cachedStoredSpotlightState = null;
       return null;
     }
 
-    cachedStoredSpotlightState = {
+    return {
       left: parsed.left,
       top: parsed.top,
       size: parsed.size,
       offsetX: Number.isFinite(parsed.offsetX) ? parsed.offsetX : 0,
       offsetY: Number.isFinite(parsed.offsetY) ? parsed.offsetY : 0,
     };
-    return cachedStoredSpotlightState;
   } catch {
-    cachedStoredSpotlightState = null;
     return null;
   }
 }
 
 function isEditableElement(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
+  if (!(target instanceof HTMLElement)) return false;
 
   return Boolean(
     target.closest(
@@ -126,18 +110,26 @@ function getOffsetBounds({
 
   return {
     minX:
-      maxCenterX < minCenterX ? viewportWidth / 2 - centerX : minCenterX - centerX,
+      maxCenterX < minCenterX
+        ? viewportWidth / 2 - centerX
+        : minCenterX - centerX,
     maxX:
-      maxCenterX < minCenterX ? viewportWidth / 2 - centerX : maxCenterX - centerX,
+      maxCenterX < minCenterX
+        ? viewportWidth / 2 - centerX
+        : maxCenterX - centerX,
     minY:
-      maxCenterY < minCenterY ? viewportHeight / 2 - centerY : minCenterY - centerY,
+      maxCenterY < minCenterY
+        ? viewportHeight / 2 - centerY
+        : minCenterY - centerY,
     maxY:
-      maxCenterY < minCenterY ? viewportHeight / 2 - centerY : maxCenterY - centerY,
+      maxCenterY < minCenterY
+        ? viewportHeight / 2 - centerY
+        : maxCenterY - centerY,
   };
 }
 
-function subscribeToSessionSnapshot() {
-  return () => {};
+function persistSpotlight(state: StoredSpotlightState) {
+  writeSessionItem(HOME_SPOTLIGHT_STYLE_STORAGE_KEY, JSON.stringify(state));
 }
 
 export default function SceneSpotlight({
@@ -147,78 +139,55 @@ export default function SceneSpotlight({
   children: ReactNode;
   skipIntro?: boolean;
 }) {
+  const initialStoredSpotlight =
+    skipIntro
+      ? parseStoredSpotlightState(
+          readSessionItem(HOME_SPOTLIGHT_STYLE_STORAGE_KEY)
+        )
+      : null;
   const rootRef = useRef<HTMLDivElement>(null);
   const readyTimeoutRef = useRef<number | null>(null);
-  const hasRevealedRef = useRef(false);
-  const latestMeasurementRef = useRef("");
-  const storedSpotlightState = useSyncExternalStore(
-    subscribeToSessionSnapshot,
-    readStoredSpotlightState,
-    () => null
+  const hasRevealedRef = useRef(Boolean(initialStoredSpotlight));
+  const latestMeasurementRef = useRef(
+    initialStoredSpotlight
+      ? JSON.stringify({
+          left: initialStoredSpotlight.left,
+          top: initialStoredSpotlight.top,
+          size: initialStoredSpotlight.size,
+          offsetX: roundTo(initialStoredSpotlight.offsetX ?? 0, 2),
+          offsetY: roundTo(initialStoredSpotlight.offsetY ?? 0, 2),
+        })
+      : ""
   );
-  const [spotlightStyle, setSpotlightStyle] = useState<SpotlightStyle>({});
-  const [spotlightOffset, setSpotlightOffset] = useState({ x: 0, y: 0 });
-  const [isReady, setIsReady] = useState(false);
-
-  const persistSpotlightState = useEffectEvent((state?: StoredSpotlightState) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const storedState =
-      state ??
-      (() => {
-        const left = String(spotlightStyle["--spotlight-left"] ?? "");
-        const top = String(spotlightStyle["--spotlight-top"] ?? "");
-        const size = String(spotlightStyle["--spotlight-size"] ?? "");
-
-        if (!left || !top || !size) {
-          return null;
+  const [spotlightStyle, setSpotlightStyle] = useState<SpotlightStyle>(() =>
+    initialStoredSpotlight ? buildSpotlightStyle(initialStoredSpotlight) : {}
+  );
+  const [spotlightOffset, setSpotlightOffset] = useState(() =>
+    initialStoredSpotlight
+      ? {
+          x: initialStoredSpotlight.offsetX ?? 0,
+          y: initialStoredSpotlight.offsetY ?? 0,
         }
-
-        return {
-          left,
-          top,
-          size,
-          offsetX: roundTo(spotlightOffset.x, 2),
-          offsetY: roundTo(spotlightOffset.y, 2),
-        } satisfies StoredSpotlightState;
-      })();
-
-    if (!storedState) {
-      return;
-    }
-
-    writeSessionItem(
-      HOME_SPOTLIGHT_STYLE_STORAGE_KEY,
-      JSON.stringify(storedState)
-    );
-  });
-
-  const resolvedSpotlightStyle =
-    spotlightStyle["--spotlight-left"] || !storedSpotlightState
-      ? spotlightStyle
-      : buildSpotlightStyle(storedSpotlightState);
-  const resolvedSpotlightOffset =
-    spotlightStyle["--spotlight-left"] || !storedSpotlightState
-      ? spotlightOffset
-      : {
-          x: storedSpotlightState.offsetX ?? 0,
-          y: storedSpotlightState.offsetY ?? 0,
-        };
+      : { x: 0, y: 0 }
+  );
+  const [isReady, setIsReady] = useState(Boolean(initialStoredSpotlight));
 
   const nudgeSpotlight = useEffectEvent((deltaX: number, deltaY: number) => {
     const left = Number.parseFloat(
-      String(resolvedSpotlightStyle["--spotlight-left"] ?? "")
+      String(spotlightStyle["--spotlight-left"] ?? "")
     );
     const top = Number.parseFloat(
-      String(resolvedSpotlightStyle["--spotlight-top"] ?? "")
+      String(spotlightStyle["--spotlight-top"] ?? "")
     );
     const size = Number.parseFloat(
-      String(resolvedSpotlightStyle["--spotlight-size"] ?? "")
+      String(spotlightStyle["--spotlight-size"] ?? "")
     );
 
-    if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(size)) {
+    if (
+      !Number.isFinite(left) ||
+      !Number.isFinite(top) ||
+      !Number.isFinite(size)
+    ) {
       return;
     }
 
@@ -231,20 +200,19 @@ export default function SceneSpotlight({
     });
 
     const nextOffset = {
-      x: clamp(resolvedSpotlightOffset.x + deltaX, bounds.minX, bounds.maxX),
-      y: clamp(resolvedSpotlightOffset.y + deltaY, bounds.minY, bounds.maxY),
+      x: clamp(spotlightOffset.x + deltaX, bounds.minX, bounds.maxX),
+      y: clamp(spotlightOffset.y + deltaY, bounds.minY, bounds.maxY),
     };
 
     if (
-      roundTo(nextOffset.x, 2) === roundTo(resolvedSpotlightOffset.x, 2) &&
-      roundTo(nextOffset.y, 2) === roundTo(resolvedSpotlightOffset.y, 2)
+      roundTo(nextOffset.x, 2) === roundTo(spotlightOffset.x, 2) &&
+      roundTo(nextOffset.y, 2) === roundTo(spotlightOffset.y, 2)
     ) {
       return;
     }
 
     setSpotlightOffset(nextOffset);
-
-    persistSpotlightState({
+    persistSpotlight({
       left: `${left}px`,
       top: `${top}px`,
       size: `${size}px`,
@@ -256,18 +224,15 @@ export default function SceneSpotlight({
   const measureSpotlight = useEffectEvent(() => {
     const root = rootRef.current;
 
-    if (!root) {
-      return;
-    }
+    if (!root) return;
+
     const targets = Array.from(
       root.querySelectorAll<HTMLElement>("[data-spotlight-target='true']")
     )
       .map((element) => element.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0);
 
-    if (targets.length === 0) {
-      return;
-    }
+    if (targets.length === 0) return;
 
     const union = targets.reduce(
       (acc, rect) => ({
@@ -286,21 +251,22 @@ export default function SceneSpotlight({
 
     const unionWidth = union.maxX - union.minX;
     const unionHeight = union.maxY - union.minY;
-    const spotlightSize = Math.max(
-      240,
+    const spotlightSize =
       Math.max(
-        unionWidth * SPOTLIGHT_WIDTH_FACTOR,
-        unionHeight * SPOTLIGHT_HEIGHT_FACTOR
-      ) +
-        SPOTLIGHT_PADDING_PX * 2 +
-        SPOTLIGHT_SIZE_OFFSET_PX
-    ) * SPOTLIGHT_SIZE_SCALE;
+        240,
+        Math.max(
+          unionWidth * SPOTLIGHT_WIDTH_FACTOR,
+          unionHeight * SPOTLIGHT_HEIGHT_FACTOR
+        ) +
+          SPOTLIGHT_PADDING_PX * 2 +
+          SPOTLIGHT_SIZE_OFFSET_PX
+      ) * SPOTLIGHT_SIZE_SCALE;
 
-    const nextState = {
+    const nextState: StoredSpotlightState = {
       left: `${roundTo(union.minX + unionWidth / 2, 2)}px`,
       top: `${roundTo(union.minY + unionHeight * SPOTLIGHT_VERTICAL_BIAS, 2)}px`,
       size: `${roundTo(spotlightSize, 2)}px`,
-    } satisfies StoredSpotlightState;
+    };
 
     const bounds = getOffsetBounds({
       centerX: Number.parseFloat(nextState.left),
@@ -311,8 +277,8 @@ export default function SceneSpotlight({
     });
 
     const nextOffset = {
-      x: clamp(resolvedSpotlightOffset.x, bounds.minX, bounds.maxX),
-      y: clamp(resolvedSpotlightOffset.y, bounds.minY, bounds.maxY),
+      x: clamp(spotlightOffset.x, bounds.minX, bounds.maxX),
+      y: clamp(spotlightOffset.y, bounds.minY, bounds.maxY),
     };
 
     const measurementKey = JSON.stringify({
@@ -329,7 +295,7 @@ export default function SceneSpotlight({
       setSpotlightOffset(nextOffset);
     }
 
-    persistSpotlightState({
+    persistSpotlight({
       ...nextState,
       offsetX: roundTo(nextOffset.x, 2),
       offsetY: roundTo(nextOffset.y, 2),
@@ -346,9 +312,7 @@ export default function SceneSpotlight({
       return;
     }
 
-    if (hasRevealedRef.current) {
-      return;
-    }
+    if (hasRevealedRef.current) return;
 
     if (readyTimeoutRef.current !== null) {
       window.clearTimeout(readyTimeoutRef.current);
@@ -364,20 +328,7 @@ export default function SceneSpotlight({
   useLayoutEffect(() => {
     const root = rootRef.current;
 
-    if (!root) {
-      return;
-    }
-
-    if (storedSpotlightState && skipIntro) {
-      hasRevealedRef.current = true;
-      latestMeasurementRef.current = JSON.stringify({
-        left: storedSpotlightState.left,
-        top: storedSpotlightState.top,
-        size: storedSpotlightState.size,
-        offsetX: roundTo(storedSpotlightState.offsetX ?? 0, 2),
-        offsetY: roundTo(storedSpotlightState.offsetY ?? 0, 2),
-      });
-    }
+    if (!root) return;
 
     const observer = new ResizeObserver(() => {
       measureSpotlight();
@@ -418,21 +369,20 @@ export default function SceneSpotlight({
       window.removeEventListener("resize", measureSpotlight);
       observer.disconnect();
     };
-  }, [storedSpotlightState]);
-
-  useEffect(() => {
-    persistSpotlightState();
-  }, [spotlightOffset, spotlightStyle]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey
+      ) {
         return;
       }
 
-      if (isEditableElement(event.target)) {
-        return;
-      }
+      if (isEditableElement(event.target)) return;
 
       const activeElement = document.activeElement;
       const root = rootRef.current;
@@ -478,9 +428,7 @@ export default function SceneSpotlight({
   }, []);
 
   useEffect(() => {
-    if (!spotlightStyle["--spotlight-left"]) {
-      return;
-    }
+    if (!spotlightStyle["--spotlight-left"]) return;
 
     const cleanupFrameId = window.requestAnimationFrame(() => {
       document.getElementById(HOME_SPOTLIGHT_BOOTSTRAP_STYLE_ID)?.remove();
@@ -491,15 +439,16 @@ export default function SceneSpotlight({
     };
   }, [spotlightStyle]);
 
-  const sceneStyle: SpotlightStyle = {
-    ...resolvedSpotlightStyle,
-    "--spotlight-offset-x": `${resolvedSpotlightOffset.x}px`,
-    "--spotlight-offset-y": `${resolvedSpotlightOffset.y}px`,
-  };
-  const hasEffectiveSpotlight = Boolean(resolvedSpotlightStyle["--spotlight-left"]);
+  const hasEffectiveSpotlight = Boolean(spotlightStyle["--spotlight-left"]);
   const spotlightMode =
     skipIntro && hasEffectiveSpotlight ? "settled" : "intro";
   const spotlightReady = isReady || (skipIntro && hasEffectiveSpotlight);
+
+  const sceneStyle: SpotlightStyle = {
+    ...spotlightStyle,
+    "--spotlight-offset-x": `${spotlightOffset.x}px`,
+    "--spotlight-offset-y": `${spotlightOffset.y}px`,
+  };
 
   return (
     <div

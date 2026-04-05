@@ -4,6 +4,7 @@ import Image from "next/image";
 import { clamp, roundTo } from "@/lib/math";
 import type { WallArtPiece } from "@/sanity/types";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -589,26 +590,24 @@ function CmsArtPiece({
   );
 }
 
-function subscribeMediaQuery(query: string) {
-  return (onStoreChange: () => void) => {
-    const mql = window.matchMedia(query);
-    mql.addEventListener("change", onStoreChange);
-    return () => mql.removeEventListener("change", onStoreChange);
-  };
-}
-
-function getMediaSnapshot(query: string) {
-  return () => window.matchMedia(query).matches;
-}
-
-const serverSnapshot = () => false;
+const serverMediaSnapshot = () => false;
 
 function useMediaQuery(query: string) {
-  return useSyncExternalStore(
-    subscribeMediaQuery(query),
-    getMediaSnapshot(query),
-    serverSnapshot
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener("change", onStoreChange);
+      return () => mql.removeEventListener("change", onStoreChange);
+    },
+    [query]
   );
+
+  const getSnapshot = useCallback(
+    () => window.matchMedia(query).matches,
+    [query]
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, serverMediaSnapshot);
 }
 
 function WallPiece({
