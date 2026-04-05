@@ -1,16 +1,26 @@
 import Link from "next/link";
 
-function ShelfDecorGraphic({ label }: { label?: string | null }) {
+function ShelfDecorGraphic({
+  label,
+  interactive,
+}: {
+  label?: string | null;
+  interactive: boolean;
+}) {
   return (
     <div className="relative">
-      {label ? (
+      {interactive && label ? (
         <span className="theme-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] tracking-[0.18em] uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {label}
         </span>
       ) : null}
       <svg
         viewBox="0 0 70 70"
-        className="motion-hover-tilt block h-24 w-24 overflow-visible transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-[-5deg]"
+        className={`block h-24 w-24 overflow-visible ${
+          interactive
+            ? "motion-hover-tilt transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-[-5deg]"
+            : ""
+        }`}
       >
         <g
           className="vinyl-spin"
@@ -43,18 +53,23 @@ export default function ShelfDecor({
   href?: string | null;
   label?: string | null;
 }) {
-  const className =
-    "theme-focus-ring group flex self-end items-end";
+  const resolvedHref = href ?? null;
+  const resolvedLabel = label ?? null;
+  const isLinked = Boolean(resolvedHref && resolvedLabel);
 
   return (
     <div className="flex items-end gap-2 ml-3 self-end">
-      {href && label ? (
-        <Link href={href} aria-label={label} className={className}>
-          <ShelfDecorGraphic label={label} />
+      {isLinked ? (
+        <Link
+          href={resolvedHref!}
+          aria-label={resolvedLabel!}
+          className="theme-focus-ring group flex self-end items-end"
+        >
+          <ShelfDecorGraphic label={resolvedLabel!} interactive />
         </Link>
       ) : (
-        <div aria-hidden="true" className={className}>
-          <ShelfDecorGraphic label={label} />
+        <div aria-hidden="true" className="flex self-end items-end">
+          <ShelfDecorGraphic label={null} interactive={false} />
         </div>
       )}
     </div>

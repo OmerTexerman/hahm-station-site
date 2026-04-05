@@ -15,6 +15,7 @@ export default function PostCard({
   coverImage,
   excerpt,
   publishedAt,
+  author,
   section: sectionProp,
 }: PostSummary & { section?: Pick<SectionConfig, "postFallbackExcerpt" | "shortLabel"> }) {
   const section = sectionProp ?? getSectionConfig(categorySlug);
@@ -48,12 +49,14 @@ export default function PostCard({
         </div>
       )}
       <div className="p-5">
-        <time
-          dateTime={publishedAt}
-          className="theme-text-muted text-xs font-medium uppercase tracking-[0.18em]"
-        >
-          {formatPublishedDate(publishedAt)}
-        </time>
+        <div className="theme-text-muted text-xs font-medium uppercase tracking-[0.18em]">
+          <time dateTime={publishedAt}>
+            {formatPublishedDate(publishedAt)}
+          </time>
+          {author?.name ? (
+            <span> &middot; {author.name}</span>
+          ) : null}
+        </div>
         <h2 className="theme-text-foreground theme-group-hover-accent mt-1 text-lg font-semibold transition-colors">
           {title}
         </h2>

@@ -1,4 +1,4 @@
-export interface SanityRgbaColor {
+interface SanityRgbaColor {
   _type?: "rgbaColor";
   r: number;
   g: number;
@@ -6,7 +6,7 @@ export interface SanityRgbaColor {
   a: number;
 }
 
-export interface SanityHslaColor {
+interface SanityHslaColor {
   _type?: "hslaColor";
   h: number;
   s: number;
@@ -14,7 +14,7 @@ export interface SanityHslaColor {
   a: number;
 }
 
-export interface SanityHsvaColor {
+interface SanityHsvaColor {
   _type?: "hsvaColor";
   h: number;
   s: number;
@@ -181,7 +181,7 @@ function rgbToHsv(r: number, g: number, b: number, alpha = 1): SanityHsvaColor {
   };
 }
 
-export function createSanityColorValue(
+function createSanityColorValue(
   r: number,
   g: number,
   b: number,

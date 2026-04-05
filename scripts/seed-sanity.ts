@@ -305,6 +305,25 @@ async function getOrUploadImageAsset(filename: string) {
   return asset._id;
 }
 
+async function upsertAuthor() {
+  const authorDocument = {
+    _id: "seed-author-hahm",
+    _type: "author",
+    name: "HAHM",
+    slug: slug("hahm"),
+    bio: "Curator and contributor at HAHM Station.",
+  };
+
+  if (dryRun) {
+    console.log("[dry-run] Would upsert default author");
+    return authorDocument._id;
+  }
+
+  await publishDocument(authorDocument);
+  console.log("Upserted default author");
+  return authorDocument._id;
+}
+
 async function resolveCategoryIds() {
   const categoryIds = new Map<string, string>();
 
@@ -409,7 +428,8 @@ async function upsertHomeScreenSettings(categoryIds: Map<string, string>) {
 
 async function upsertPosts(
   categoryIds: Map<string, string>,
-  assets: Record<keyof typeof SAMPLE_ASSET_FILES, string>
+  assets: Record<keyof typeof SAMPLE_ASSET_FILES, string>,
+  authorId: string
 ) {
   const postSeeds = [
     {
@@ -595,6 +615,10 @@ async function upsertPosts(
         _type: "reference",
         _ref: categoryRef,
       },
+      author: {
+        _type: "reference",
+        _ref: authorId,
+      },
       publishedAt: postSeed.publishedAt,
       excerpt: postSeed.excerpt,
       coverImage: {
@@ -700,9 +724,10 @@ async function main() {
   };
 
   const categoryIds = await resolveCategoryIds();
+  const authorId = await upsertAuthor();
   await upsertSiteSettings();
   await upsertHomeScreenSettings(categoryIds);
-  await upsertPosts(categoryIds, assets);
+  await upsertPosts(categoryIds, assets, authorId);
   await upsertWallArt(assets);
 
   console.log(

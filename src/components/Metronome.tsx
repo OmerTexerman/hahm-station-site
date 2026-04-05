@@ -1,9 +1,21 @@
 import Link from "next/link";
 
-function MetronomeGraphic({ label }: { label?: string | null }) {
+function MetronomeGraphic({
+  label,
+  interactive,
+}: {
+  label?: string | null;
+  interactive: boolean;
+}) {
   return (
-    <div className="motion-hover-lift relative flex items-end transition-transform duration-300 group-hover:-translate-y-2">
-      {label ? (
+    <div
+      className={`relative flex items-end ${
+        interactive
+          ? "motion-hover-lift transition-transform duration-300 group-hover:-translate-y-2"
+          : ""
+      }`}
+    >
+      {interactive && label ? (
         <span className="theme-tooltip absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] tracking-[0.18em] uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {label}
         </span>
@@ -64,20 +76,25 @@ export default function Metronome({
   href?: string | null;
   label?: string | null;
 }) {
-  const className =
-    "theme-focus-ring group -ml-1 flex flex-shrink-0 self-end items-end pr-3";
+  const resolvedHref = href ?? null;
+  const resolvedLabel = label ?? null;
+  const isLinked = Boolean(resolvedHref && resolvedLabel);
 
-  if (!href || !label) {
+  if (!isLinked) {
     return (
-      <div aria-hidden="true" className={className}>
-        <MetronomeGraphic label={label} />
+      <div aria-hidden="true" className="-ml-1 flex flex-shrink-0 self-end items-end pr-3">
+        <MetronomeGraphic label={null} interactive={false} />
       </div>
     );
   }
 
   return (
-    <Link href={href} aria-label={label} className={className}>
-      <MetronomeGraphic label={label} />
+    <Link
+      href={resolvedHref!}
+      aria-label={resolvedLabel!}
+      className="theme-focus-ring group -ml-1 flex flex-shrink-0 self-end items-end pr-3"
+    >
+      <MetronomeGraphic label={resolvedLabel!} interactive />
     </Link>
   );
 }

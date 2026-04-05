@@ -48,6 +48,9 @@ function buildTags(payload: RevalidatePayload) {
     case "wallArt":
       tags.add(SANITY_TAGS.wallArt);
       break;
+    case "author":
+      tags.add(SANITY_TAGS.posts);
+      break;
     case "post":
       tags.add(SANITY_TAGS.posts);
       break;

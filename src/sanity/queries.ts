@@ -31,7 +31,8 @@ const postsByCategoryQuery = `
       ...,
       alt
     },
-    "categorySlug": category->slug.current
+    "categorySlug": category->slug.current,
+    "author": author-> { name }
   }
 `;
 
@@ -116,7 +117,15 @@ const postQuery = `
       title,
       "slug": slug.current
     },
-    "categorySlug": category->slug.current
+    "categorySlug": category->slug.current,
+    "author": author-> {
+      name,
+      "slug": slug.current,
+      image {
+        asset,
+        alt
+      }
+    }
   }
 `;
 

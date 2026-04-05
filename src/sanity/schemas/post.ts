@@ -37,6 +37,14 @@ export const post = defineType({
       group: "editorial",
     }),
     defineField({
+      name: "author",
+      title: "Author",
+      type: "reference",
+      to: [{ type: "author" }],
+      description: "Who wrote this post.",
+      group: "editorial",
+    }),
+    defineField({
       name: "publishedAt",
       title: "Published At",
       type: "datetime",

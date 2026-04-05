@@ -95,10 +95,6 @@ body {
   color: var(--theme-soft-foreground);
 }
 
-.theme-text-accent {
-  color: var(--theme-accent);
-}
-
 .theme-text-accent-soft {
   color: color-mix(in srgb, var(--theme-accent) 80%, white);
 }
@@ -120,10 +116,6 @@ body {
   color: var(--theme-foreground);
 }
 
-.theme-hover-accent:hover {
-  color: var(--theme-accent-hover);
-}
-
 .group:hover .theme-group-hover-accent {
   color: var(--theme-accent-hover);
 }
@@ -140,11 +132,6 @@ body {
 
 .theme-card:hover {
   border-color: var(--theme-border-strong);
-}
-
-.theme-panel {
-  background: var(--theme-surface-overlay);
-  border-color: var(--theme-border);
 }
 
 .theme-nav-pill {

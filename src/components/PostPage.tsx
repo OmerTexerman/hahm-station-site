@@ -41,12 +41,28 @@ export default async function PostPage({
             <p className="theme-text-accent-soft text-sm font-medium uppercase tracking-[0.18em]">
               {post.category.title}
             </p>
-            <time
-              dateTime={post.publishedAt}
-              className="theme-text-muted mt-3 block text-sm"
-            >
-              {formatPublishedDate(post.publishedAt)}
-            </time>
+            <div className="theme-text-muted mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <time dateTime={post.publishedAt}>
+                {formatPublishedDate(post.publishedAt)}
+              </time>
+              {post.author ? (
+                <>
+                  <span aria-hidden>&middot;</span>
+                  <span className="flex items-center gap-2">
+                    {post.author.image?.asset?._ref ? (
+                      <Image
+                        src={urlFor(post.author.image).width(28).height(28).url()}
+                        alt={post.author.image.alt || post.author.name}
+                        width={28}
+                        height={28}
+                        className="rounded-full"
+                      />
+                    ) : null}
+                    {post.author.name}
+                  </span>
+                </>
+              ) : null}
+            </div>
             <h1
               id="post-title"
               className="theme-text-foreground mt-2 font-[family-name:var(--font-display)] text-3xl font-black tracking-tight md:text-4xl"

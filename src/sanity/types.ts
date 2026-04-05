@@ -10,6 +10,12 @@ export interface SanityImageSource {
   alt?: string | null;
 }
 
+export interface PostAuthor {
+  name: string;
+  slug?: string | null;
+  image?: SanityImageSource;
+}
+
 export interface PostSummary {
   _id: string;
   title: string;
@@ -18,6 +24,7 @@ export interface PostSummary {
   excerpt?: string | null;
   coverImage?: SanityImageSource;
   categorySlug: CategorySlug;
+  author?: PostAuthor | null;
 }
 
 export interface PortableTextSpan {

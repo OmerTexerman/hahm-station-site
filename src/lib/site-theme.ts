@@ -354,7 +354,7 @@ export const THEME_FIELD_DEFINITIONS = [
   },
 ] as const;
 
-export type ThemeFieldDefinition = (typeof THEME_FIELD_DEFINITIONS)[number];
+type ThemeFieldDefinition = (typeof THEME_FIELD_DEFINITIONS)[number];
 export type ThemeTokenName = ThemeFieldDefinition["name"];
 export type ThemeCssVariable = ThemeFieldDefinition["cssVar"];
 

@@ -1,5 +1,7 @@
 import { getSectionConfig, type CategorySlug } from "@/lib/site";
-import type { PostDetail, PostSummary } from "@/sanity/types";
+import type { PostAuthor, PostDetail, PostSummary } from "@/sanity/types";
+
+const placeholderAuthor: PostAuthor = { name: "HAHM" };
 
 const posts: PostSummary[] = [
   {
@@ -10,6 +12,7 @@ const posts: PostSummary[] = [
     excerpt:
       "A deep dive into the layered production and raw vulnerability that makes this album timeless.",
     categorySlug: "music-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-2",
@@ -19,6 +22,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Is it pop? Is it punk? Charli blurs the lines again and it works.",
     categorySlug: "music-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-3",
@@ -28,6 +32,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Breaking down the creative process behind loop-based music production.",
     categorySlug: "music-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-4",
@@ -37,6 +42,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Murakami weaves dreams and reality into something you can't put down.",
     categorySlug: "literature-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-5",
@@ -46,6 +52,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Dostoevsky's masterpiece on faith, doubt, and family — a re-read that rewards.",
     categorySlug: "literature-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-6",
@@ -55,6 +62,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Dystopia that feels uncomfortably prophetic. Butler saw everything coming.",
     categorySlug: "literature-review",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-7",
@@ -64,6 +72,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Some thoughts on change, growth, and what's coming next.",
     categorySlug: "life-updates",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-8",
@@ -73,6 +82,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Looking back at what I learned and where things are headed.",
     categorySlug: "life-updates",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-9",
@@ -82,6 +92,7 @@ const posts: PostSummary[] = [
     excerpt:
       "After months of late nights, the first collection of beats is finally out.",
     categorySlug: "my-music",
+    author: placeholderAuthor,
   },
   {
     _id: "placeholder-10",
@@ -91,6 +102,7 @@ const posts: PostSummary[] = [
     excerpt:
       "Breaking down the sampling, mixing, and vibe behind my latest track.",
     categorySlug: "my-music",
+    author: placeholderAuthor,
   },
 ];
 
@@ -110,6 +122,7 @@ export function getPlaceholderPost(slug: string): PostDetail | null {
 
   return {
     ...post,
+    author: placeholderAuthor,
     category: {
       title: section.title,
       slug: post.categorySlug,

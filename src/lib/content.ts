@@ -28,6 +28,8 @@ export async function getResolvedSiteContent(): Promise<ResolvedSiteContent> {
     settings: resolveSiteSettings({
       ...siteSettingsSource,
       ...homeScreenSettingsSource,
+    }, {
+      hasHomeScreenSettings: Boolean(homeScreenSettingsSource),
     }),
     sections: resolveSections(categoriesSource),
   };
@@ -38,7 +40,7 @@ export async function getResolvedSiteSettings(): Promise<SiteSettings> {
   return settings;
 }
 
-export async function getResolvedSections(): Promise<SectionConfig[]> {
+async function getResolvedSections(): Promise<SectionConfig[]> {
   const { sections } = await getResolvedSiteContent();
   return sections;
 }

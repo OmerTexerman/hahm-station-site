@@ -1,3 +1,4 @@
+import { author } from "./author";
 import { category } from "./category";
 import { homeScreenSettings } from "./homeScreenSettings";
 import { post } from "./post";
@@ -9,5 +10,6 @@ export const schemaTypes = [
   homeScreenSettings,
   category,
   post,
+  author,
   wallArt,
 ];

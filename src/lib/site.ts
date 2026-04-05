@@ -84,6 +84,10 @@ export interface SiteSettingsSource {
   theme?: SiteThemeSource | null;
 }
 
+type ResolveSiteSettingsOptions = {
+  hasHomeScreenSettings?: boolean;
+};
+
 const SECTION_COLOR_FALLBACKS = [
   { color: "#8B4513", accentColor: "#D4A056" },
   { color: "#2F4F4F", accentColor: "#5F9F9F" },
@@ -247,7 +251,7 @@ export function getSectionConfig(slug: CategorySlug): SectionConfig {
   return KNOWN_SECTION_DEFAULTS[slug] ?? buildGenericSectionConfig(slug);
 }
 
-export function resolveSectionConfig(
+function resolveSectionConfig(
   source: CategoryContentSource,
   index = 0
 ): SectionConfig | null {
@@ -318,8 +322,11 @@ export function getNavItems(sections: SectionConfig[]) {
 }
 
 export function resolveSiteSettings(
-  source?: SiteSettingsSource | null
+  source?: SiteSettingsSource | null,
+  options: ResolveSiteSettingsOptions = {}
 ): SiteSettings {
+  const hasHomeScreenSettings = options.hasHomeScreenSettings ?? false;
+
   return {
     siteTitle: source?.siteTitle?.trim() || DEFAULT_SITE_SETTINGS.siteTitle,
     siteDescription:
@@ -350,15 +357,15 @@ export function resolveSiteSettings(
     metronomeTooltip: readOptionalText(source?.metronomeTooltip),
     vinylTooltip: readOptionalText(source?.vinylTooltip),
     plantTooltip: readOptionalText(source?.plantTooltip),
-    metronomeCategorySlug:
-      readOptionalText(source?.metronomeCategorySlug) ||
-      DEFAULT_SITE_SETTINGS.metronomeCategorySlug,
-    vinylCategorySlug:
-      readOptionalText(source?.vinylCategorySlug) ||
-      DEFAULT_SITE_SETTINGS.vinylCategorySlug,
-    plantCategorySlug:
-      readOptionalText(source?.plantCategorySlug) ||
-      DEFAULT_SITE_SETTINGS.plantCategorySlug,
+    metronomeCategorySlug: hasHomeScreenSettings
+      ? readOptionalText(source?.metronomeCategorySlug)
+      : DEFAULT_SITE_SETTINGS.metronomeCategorySlug,
+    vinylCategorySlug: hasHomeScreenSettings
+      ? readOptionalText(source?.vinylCategorySlug)
+      : DEFAULT_SITE_SETTINGS.vinylCategorySlug,
+    plantCategorySlug: hasHomeScreenSettings
+      ? readOptionalText(source?.plantCategorySlug)
+      : DEFAULT_SITE_SETTINGS.plantCategorySlug,
     theme: resolveTheme(source?.theme),
   };
 }

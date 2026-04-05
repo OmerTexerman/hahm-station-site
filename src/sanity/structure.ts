@@ -24,6 +24,7 @@ export const structure: StructureResolver = (S) =>
       S.divider(),
       S.documentTypeListItem("category").title("Categories"),
       S.documentTypeListItem("post").title("Posts"),
+      S.documentTypeListItem("author").title("Authors"),
       S.documentTypeListItem("wallArt").title("Wall Art"),
       S.divider(),
       ...S.documentTypeListItems().filter((item) => {
@@ -35,6 +36,7 @@ export const structure: StructureResolver = (S) =>
             "homeScreenSettings",
             "category",
             "post",
+            "author",
             "wallArt",
           ].includes(id)
         );
